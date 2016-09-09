@@ -1,0 +1,409 @@
+---
+title: "Farm Household features and Data Base development"
+author: "Francisco Fernandez"
+date: "Friday, July 08, 2016"
+output: html_document
+subtitle: From Cluster Analysis to Farm-Household Model Data Base 
+---
+
+# Data Base construction
+Based on PCA results and cluster analysis we developed the Final Data Base used to assess the economic impact of climate change on the agricultural sector of the Maule region of Chile at micro-level scale.
+
+The data base development here presented is described in detail in this appendix.In a first place, joining the data survey and the results obtained from the cluster analysis we add a type number (which represent each household type) for each observation of RawData. After this, we select the main variables that we will use for the Data Base construction, where the information of each representative household will be presented.  
+
+```{r,echo=FALSE}
+### Read Data
+FinalCluster<-read.table(file.choose("Final_cluster.csv"), header = TRUE, sep =",")
+
+```
+
+
+```{r,echo=FALSE,include=FALSE}
+library(dplyr)
+library(tidyr)
+
+### Loading Data 
+#FinalCluster<-read.table(file.choose("Final_cluster.csv"), header = TRUE, sep =",")
+#RawData <-read.table(file.choose("DB_PMP_FINAL.csv"), header = TRUE, sep =";")
+
+load("RawData.Rda")
+#load("FinalCluster.Rda")
+# Data frame folio and Typo
+DF_FT  <- FinalCluster %>%
+        select(folio, typo)
+
+## Adding variables to RawData for Cluster Analysis
+### Add Tot_Lab "Total Labor (working days per ha)"
+RawData <- RawData %>%
+        mutate(Tot_Lab = (jh_pt_f + jh_pt_c + jh_s_f + jh_s_c + jh_apf_f + jh_apf_c + jh_ahp_f + jh_ahp_c +
+                       jh_r_f + jh_r_c + jh_c_f + jh_c_c)/x0)
+
+
+### Add Hired_Lab "Hired Labor (working days per ha)"
+RawData <- RawData %>%
+        mutate(Hrd_Lab = (jh_pt_c +  jh_s_c +  jh_apf_c + jh_ahp_c + jh_r_c + jh_c_c)/x0)
+
+
+### Add Hrd_ratio "Hired ratio (working days per ha) -> Hired labour/Total Labour"
+RawData <- RawData %>%
+        mutate(Hrd_ratio = Hrd_Lab / Tot_Lab )
+
+### Add Family_Lab "Family Labor (working days per ha)"
+RawData <- RawData %>%
+        mutate(Fam_Lab = (jh_pt_f +  jh_s_f +  jh_apf_f + jh_ahp_f + jh_r_f + jh_c_f)/x0)
+
+# Data frame Labour
+DF_Lab <- RawData %>%
+        select(folio, Fam_Lab, Hrd_Lab)
+
+# Add "typo" variable to RawData
+DF_FstClus  <- left_join(RawData, DF_FT, by = "folio")
+
+#Select variables for Data Base
+DF_FstClus2 <- DF_FstClus %>%
+        select(typo, comuna, cultivo, sistema, x0, yield, p0, jh_c, jh, ctomaq, ctoinsumosh, ctototal)
+
+#Add Labour Data to Cluster Data Frame
+DF_FstClus3 <- bind_cols(DF_FstClus2, DF_Lab)
+DF_FstClus3  <- DF_FstClus3 %>%
+        select(typo, comuna, cultivo, sistema, x0, yield, p0, Fam_Lab, Hrd_Lab, jh_c, jh, ctomaq, ctoinsumosh, ctototal)
+
+# Adding Labour cost ($CLP/ha)
+DF_FstClus4  <- DF_FstClus3 %>%
+        mutate(HrdLabCst = Hrd_Lab*jh_c, FamLabCst = Fam_Lab*jh) %>%
+        mutate(TtlCst= HrdLabCst + FamLabCst + ctomaq + ctoinsumosh)
+
+```
+
+
+# Household type description
+In the next tables we present the summary for each one of the cluster developed. 
+
+```{r,echo=F,fig.cap="Table B1: Main characteristics of the farm types"}
+DataStat <- data.frame(n= numeric(0), Farm_size= integer(0), mean_Rev = integer(0), Grn_shr = integer(0), SC_shr = integer(0), SV_shr = integer(0))
+```
+
+
+```{r,echo=FALSE}
+Cluster1 <- FinalCluster %>%
+        filter(typo == 1)
+
+Cluster1$OC_shr<-NULL
+Cluster1$SD_shr<-NULL
+
+Cluster2 <- FinalCluster %>%
+        filter(typo == 2)
+
+Cluster2$OC_shr<-NULL
+Cluster2$SD_shr<-NULL
+
+
+Cluster3 <- FinalCluster %>%
+        filter(typo == 3)
+
+Cluster3$OC_shr<-NULL
+Cluster3$SD_shr<-NULL
+
+
+Cluster4 <- FinalCluster %>%
+        filter(typo == 4)
+
+Cluster4$OC_shr<-NULL
+Cluster4$SD_shr<-NULL
+
+
+#Cluster5 <- FinalCluster %>%
+#        filter(typo == 5)
+
+#Cluster5$OC_shr<-NULL
+#Cluster5$SD_shr<-NULL
+
+
+```
+
+```{r,echo=F,fig.cap="tABLE b1:"}
+# Number of farms 
+DataStat[1,1] <- nrow(Cluster1)
+DataStat[2,1] <- nrow(Cluster2)
+DataStat[3,1] <- nrow(Cluster3)
+DataStat[4,1] <- nrow(Cluster4)
+#DataStat[5,1] <- nrow(Cluster5)
+
+# Mean of farm size
+DataStat[1,2] <- round(mean(Cluster1$Farm_size),2)
+DataStat[2,2] <- round(mean(Cluster2$Farm_size),2)
+DataStat[3,2] <- round(mean(Cluster3$Farm_size),2)
+DataStat[4,2] <- round(mean(Cluster4$Farm_size),2)
+#DataStat[5,2] <- round(mean(Cluster5$Farm_size),2)
+
+DataStat[1,3] <- round(mean(Cluster1$Ttl_Rev),2)
+DataStat[2,3] <- round(mean(Cluster2$Ttl_Rev),2)
+DataStat[3,3] <- round(mean(Cluster3$Ttl_Rev),2)
+DataStat[4,3] <- round(mean(Cluster4$Ttl_Rev),2)
+#DataStat[5,3] <- round(mean(Cluster5$Ttl_Rev),2)
+
+DataStat[1,4] <- round(mean(Cluster1$Grn_shr),2)
+DataStat[2,4] <- round(mean(Cluster2$Grn_shr),2)
+DataStat[3,4] <- round(mean(Cluster3$Grn_shr),2)
+DataStat[4,4] <- round(mean(Cluster4$Grn_shr),2)
+#DataStat[5,4] <- round(mean(Cluster5$Grn_shr),2)
+
+DataStat[1,5] <- round(mean(Cluster1$SC_shr),2)
+DataStat[2,5] <- round(mean(Cluster2$SC_shr),2)
+DataStat[3,5] <- round(mean(Cluster3$SC_shr),2)
+DataStat[4,5] <- round(mean(Cluster4$SC_shr),2)
+#DataStat[5,5] <- round(mean(Cluster5$SC_shr),2)
+
+DataStat[1,6] <- round(mean(Cluster1$SV_shr),2)
+DataStat[2,6] <- round(mean(Cluster2$SV_shr),2)
+DataStat[3,6] <- round(mean(Cluster3$SV_shr),2)
+DataStat[4,6] <- round(mean(Cluster4$SV_shr),2)
+#DataStat[5,6] <- round(mean(Cluster5$SV_shr),2)
+
+
+DataStat
+
+```
+
+
+```{r,echo=FALSE}
+
+Household1 <- DF_FstClus4 %>%
+        filter(typo == 1)
+
+Household1<-na.omit(Household1)
+
+Household1 <- Household1 %>%
+        group_by(comuna, cultivo, sistema) %>%
+        summarise(area = sum(x0), yield = mean(yield), CropPrice = mean(p0), HiredLabor = mean(Hrd_Lab),
+                  FamilyLab = mean(Fam_Lab), PriceHrdLab = mean(jh_c), PriceFamLab = mean(jh),
+                  rentedMachCosts = mean(ctomaq), InputCosts = mean(ctoinsumosh))
+
+CrpsHT1 <- Household1 %>%
+        group_by(cultivo) %>%
+        summarise(m_Area = sum(area)) %>%
+        mutate(Area_shr = m_Area/sum(m_Area))
+
+SysHT1  <- Household1 %>%
+        group_by(sistema) %>%
+        summarise(m_Sys = sum(area)) %>%
+        mutate(Sys_shr = m_Sys/sum(m_Sys))
+
+RevHT1  <- Household1 %>%
+        group_by(cultivo) %>%
+        summarise(m_Rev = sum(area * yield * CropPrice)) %>%
+        mutate(Rev_shr = m_Rev/sum(m_Rev))
+
+Household1$HT  <- "H1"
+
+Household2 <- DF_FstClus4 %>%
+        filter(typo == 2)
+
+Household2<-na.omit(Household2)
+
+Household2 <- Household2 %>%
+        group_by(comuna, cultivo, sistema) %>%
+        summarise(area = sum(x0), yield = mean(yield), CropPrice = mean(p0), HiredLabor = mean(Hrd_Lab),
+                  FamilyLab = mean(Fam_Lab), PriceHrdLab = mean(jh_c), PriceFamLab = mean(jh),
+                  rentedMachCosts = mean(ctomaq), InputCosts = mean(ctoinsumosh))
+
+CrpsHT2 <- Household2 %>%
+        group_by(cultivo) %>%
+        summarise(m_Area = sum(area)) %>%
+        mutate(Area_shr = m_Area/sum(m_Area))
+
+SysHT2  <- Household2 %>%
+        group_by(sistema) %>%
+        summarise(m_Sys = sum(area)) %>%
+        mutate(Sys_shr = m_Sys/sum(m_Sys))
+                  
+RevHT2  <- Household2 %>%
+        group_by(cultivo) %>%
+        summarise(m_Rev = sum(area * yield * CropPrice)) %>%
+        mutate(Rev_shr = m_Rev/sum(m_Rev))
+
+Household2$HT  <- "H2"
+
+
+######################################--Household Type 3--#############################
+
+Household3 <- DF_FstClus4 %>%
+        filter(typo == 3)
+
+Household3<-na.omit(Household3)
+
+Household3 <- Household3 %>%
+        group_by(comuna, cultivo, sistema) %>%
+        summarise(area = sum(x0), yield = mean(yield), CropPrice = mean(p0), HiredLabor = mean(Hrd_Lab),
+                  FamilyLab = mean(Fam_Lab), PriceHrdLab = mean(jh_c), PriceFamLab = mean(jh),
+                  rentedMachCosts = mean(ctomaq), InputCosts = mean(ctoinsumosh))
+
+CrpsHT3 <- Household3 %>%
+        group_by(cultivo) %>%
+        summarise(m_Area = sum(area)) %>%
+        mutate(Area_shr = m_Area/sum(m_Area))
+
+SysHT3  <- Household3 %>%
+        group_by(sistema) %>%
+        summarise(m_Sys = sum(area)) %>%
+        mutate(Sys_shr = m_Sys/sum(m_Sys))
+                  
+RevHT3  <- Household3 %>%
+        group_by(cultivo) %>%
+        summarise(m_Rev = sum(area * yield * CropPrice)) %>%
+        mutate(Rev_shr = m_Rev/sum(m_Rev))
+                  
+
+Household3$HT  <- "H3"
+
+######################################--Household Type 4--#############################
+
+Household4 <- DF_FstClus4 %>%
+        filter(typo == 4)
+
+Household4<-na.omit(Household4)
+
+Household4 <- Household4 %>%
+        group_by(comuna, cultivo, sistema) %>%
+        summarise(area = sum(x0), yield = mean(yield), CropPrice = mean(p0), HiredLabor = mean(Hrd_Lab),
+                  FamilyLab = mean(Fam_Lab), PriceHrdLab = mean(jh_c), PriceFamLab = mean(jh),
+                  rentedMachCosts = mean(ctomaq), InputCosts = mean(ctoinsumosh))
+
+CrpsHT4 <- Household4 %>%
+        group_by(cultivo) %>%
+        summarise(m_Area = sum(area)) %>%
+        mutate(Area_shr = m_Area/sum(m_Area))
+
+SysHT4  <- Household4 %>%
+        group_by(sistema) %>%
+        summarise(m_Sys = sum(area)) %>%
+        mutate(Sys_shr = m_Sys/sum(m_Sys))
+                  
+RevHT4  <- Household4 %>%
+        group_by(cultivo) %>%
+        summarise(m_Rev = sum(area * yield * CropPrice)) %>%
+        mutate(Rev_shr = m_Rev/sum(m_Rev))
+
+Household4$HT  <- "H4"
+
+######################################--Household Type 4--#############################
+
+#Household5 <- DF_FstClus4 %>%
+#        filter(typo == 5)
+
+#Household5<-na.omit(Household5)
+
+#Household5 <- Household5 %>%
+#        group_by(comuna, cultivo, sistema) %>%
+#        summarise(area = sum(x0), yield = mean(yield), CropPrice = mean(p0), HiredLabor = mean(Hrd_Lab),
+#                  FamilyLab = mean(Fam_Lab), PriceHrdLab = mean(jh_c), PriceFamLab = mean(jh),
+#                  rentedMachCosts = mean(ctomaq), InputCosts = mean(ctoinsumosh))
+
+#CrpsHT5 <- Household5 %>%
+#        group_by(cultivo) %>%
+#        summarise(m_Area = sum(area)) %>%
+#        mutate(Area_shr = m_Area/sum(m_Area))
+
+#SysHT5  <- Household5 %>%
+#        group_by(sistema) %>%
+#        summarise(m_Sys = sum(area)) %>%
+#                          mutate(Sys_shr = m_Sys/sum(m_Sys))
+                  
+#RevHT5  <- Household5 %>%
+#        group_by(cultivo) %>%
+#        summarise(m_Rev = sum(area * yield * CropPrice)) %>%
+#        mutate(Rev_shr = m_Rev/sum(m_Rev))
+                  
+#Household5$HT  <- "H5"
+                  
+```
+
+```{r}
+CrpsHT1
+SysHT1
+RevHT1
+```
+
+```{r}
+CrpsHT2
+SysHT2
+RevHT2
+```
+
+```{r}
+CrpsHT3
+SysHT3
+RevHT3
+```
+
+```{r}
+CrpsHT4
+SysHT4
+RevHT4
+```
+
+```{r}
+#CrpsHT5
+#SysHT5
+#RevHT5
+```
+
+```{r}
+################ Binding Households Data frames --> Creating Final DB for household model
+
+FinalDB_0208 <- bind_rows(Household1, Household2, Household3, Household4)
+FinalDB_0208 <- FinalDB_0208[,c(13,1:12)]
+FinalDB_0208 <- FinalDB_0208 %>%
+        rename(commune=comuna, crop=cultivo, system=sistema)
+
+
+### Final Details
+## Codes for communes
+FinalDB_0208$commune <- as.character(FinalDB_0208$commune)
+FinalDB_0208$commune[FinalDB_0208$commune == "Pencahue"] <- "PEN"
+FinalDB_0208$commune[FinalDB_0208$commune == "Cauquenes"] <- "CAU"
+FinalDB_0208$commune[FinalDB_0208$commune == "San Clemente"] <- "SC"
+FinalDB_0208$commune[FinalDB_0208$commune == "Parral"] <- "PAR"
+
+## Codes for systems
+FinalDB_0208$system <- as.character(FinalDB_0208$system)
+FinalDB_0208$system[FinalDB_0208$system == "riego"] <- "irr"
+FinalDB_0208$system[FinalDB_0208$system == "secano"] <- "dry"
+
+
+## Codes for Crops
+FinalDB_0208$crop <- as.character(FinalDB_0208$crop)
+FinalDB_0208$crop[FinalDB_0208$crop == "ARROZ"] <- "ric"
+FinalDB_0208$crop[FinalDB_0208$crop == "ARVEJA"] <- "pea"
+FinalDB_0208$crop[FinalDB_0208$crop == "AVENA"] <- "oat"
+FinalDB_0208$crop[FinalDB_0208$crop == "CEBOLLA"] <- "oni"
+FinalDB_0208$crop[FinalDB_0208$crop == "GARBANZO"] <- "chk"
+FinalDB_0208$crop[FinalDB_0208$crop == "LENTEJA"] <- "len"
+FinalDB_0208$crop[FinalDB_0208$crop == "MAIZ"] <- "mze"
+FinalDB_0208$crop[FinalDB_0208$crop == "MELON"] <- "mel"
+FinalDB_0208$crop[FinalDB_0208$crop == "PAPA"] <- "pot"
+FinalDB_0208$crop[FinalDB_0208$crop == "POROTO"] <- "cmb"
+FinalDB_0208$crop[FinalDB_0208$crop == "POROTO_VER"] <- "gbn"
+FinalDB_0208$crop[FinalDB_0208$crop == "SANDIA"] <- "wtm"
+FinalDB_0208$crop[FinalDB_0208$crop == "TOMATE"] <- "tom"
+FinalDB_0208$crop[FinalDB_0208$crop == "TRIGO"] <- "wht"
+FinalDB_0208$crop[FinalDB_0208$crop == "ZAPALLO"] <- "sqh"
+
+## Rounding values
+FinalDB_0208$yield <-round(FinalDB_0208$yield,2) 
+FinalDB_0208$CropPrice <-round(FinalDB_0208$CropPrice)
+FinalDB_0208$HiredLabor <- round(FinalDB_0208$HiredLabor,2)
+FinalDB_0208$FamilyLab <- round(FinalDB_0208$FamilyLab,2)
+FinalDB_0208$PriceHrdLab <- round(FinalDB_0208$PriceHrdLab)
+FinalDB_0208$PriceFamLab <- round(FinalDB_0208$PriceFamLab)
+FinalDB_0208$rentedMachCosts <- round(FinalDB_0208$rentedMachCosts)
+FinalDB_0208$InputCosts <- round(FinalDB_0208$InputCosts)
+
+tbl_df(FinalDB_0208)
+
+#Saving FinalDB as csv
+write.csv(FinalDB_0208, file="csv_files/FinalDB_0208.csv") 
+
+```
+
+

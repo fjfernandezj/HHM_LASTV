@@ -1,0 +1,317 @@
+---
+title: 'Appendix A: Typology Construction'
+author: "Francisco Fernandez"
+subtitle: PCA and Hierarchical Cluster Analysis
+output:
+  html_document: default
+  word_document:
+    reference_docx: template.docx
+theme: journal
+---
+
+
+## Overview
+
+The typology construction here presented was based on Alvarez et al. (2014). It was made over four main stages: 1) selection of variables, 2) Data control for the PCA, 3) PCA analysis and 4) Hierarchical cluster on the PCA results. Through this approach we identify those variables that best describe the farm variability and group the farms in homogeneous type. The typology was obtained from a survey applied in 2011 to a sample of 260 farm households proportionally distributed according to the number of farms in each commune.
+
+
+
+## Variable selection and data Control
+The framework used for the selection of variables was built on two pillars. First, it was based mainly on a structural typology, which is centred mainly in variables that describe resource endowments (Alvarez et al., 2014). Second, we take into account different literature's recommendation related with farm typology construction. Amongst them, key recommendations are related with the limited number of variables that should be used for typification (Kostrowicky, 1977); or with the factors that should be take into account to discard some variables (Aldenderfer and Blashfield, 1984; Escobar and Berdegue 1990; Kobrich et al., 2003; Valbuena et al., 2008; Daloglu et al., 2014). As the second step, before running the PCA analysis, we check data, finding missing values, potential errors, outliers, strong correlations and control the variables distribution. Taking this into accounts the first variables that we chose were:  
+
+|  Code        | Variable |
+|---           |---       |
+|commune       | Commune
+|Hhsize        | Household size (number of member in the household)|
+|Farm_size     | Land area (ha)         |
+|Hrd_ratio     | Hired labour ratio ( Hired/total lab)        |
+|Ttl_Lab       | Total Labour (workday/years/ha) |
+|Ttl_Rev       | Total Revenue (CLP/ha)|
+|Ttl_Cst       | Total Cost (CLP/ha)|
+|Grn_shr       | Share of grain crops (grain crops/Total Land)|
+|SV_shr        | Share of spring vegetable (Spring vegetables/Total Land)|
+|SC_shr        | Share of spring crops (spring crops/Total Land)|
+|Consumption   | Consumption (ton/ha/year) |
+
+**Table A1:** Variables from dataset
+
+
+
+To detect potential errors, outliers and "strong" correlations from dataset we use  X-Y graphics (Figure A1) and distribution graphics (Figure A2). For X-Y graphics we mainly chose quantitative variables, leaving out the variable commune. 
+
+
+```{r,echo=FALSE}
+### Read Data
+All.Data<-read.table(file.choose("DataForCluster.csv"), header = TRUE, sep =",")
+
+#Checking Data
+AllData<-na.omit(All.Data)
+
+```
+
+```{r, echo=FALSE,fig.cap="**Figure A1:** Matrix of X-Y plots for selected variables",fig.align='center'}
+#load("AllData.Rda")
+pairs(AllData[,-c(1,2,3,13,14)], panel=panel.smooth)
+
+```
+
+
+For distribution graphics we choose the same variables above mentioned 
+
+```{r,echo=FALSE,fig.cap="**Figure A2:** Variables distributions",fig.align='center'}
+par(mfrow=c(3,4))
+h1<-hist(AllData$Farm_size, main="Farm size", xlab=NULL)
+h2<-hist(AllData$hhsize, main="Household size",xlab=NULL)
+h3<-hist(AllData$Hrd_ratio, main="Hired ratio", xlab=NULL)
+h4<-hist(AllData$Ttl_Lab, main="Total Labour",  xlab=NULL)
+h5<-hist(AllData$Ttl_Rev, main="Total Revenue",  xlab=NULL)
+h6<-hist(AllData$Ttl_Cst, main="Total Cost",xlab=NULL)
+h7<-hist(AllData$Grn_shr, main="Share of grain crops", xlab=NULL)
+h8<-hist(AllData$SV_shr, main="Share of spring vegetables", xlab=NULL)
+h9<-hist(AllData$SC_shr, main="Share of spring crops", xlab=NULL)
+h10<-hist(AllData$Consumption, main="Consumption", xlab=NULL)
+
+```
+
+
+
+In above figures, we observe the existence of outliers in terms of field Farm size, Total Revenue and Total Cost. For a more detail perspective of these outliers we create different boxplots for the above mentioned variables (Figure A3). 
+
+```{r, echo=FALSE,fig.cap="**Figure A3:** Box-plots for selected variables",fig.align='center'}
+par(mfrow=c(1,3))
+boxplot(AllData$Farm_size, main="Farm size")
+boxplot(AllData$Ttl_Rev, main="Tot_Rev")
+boxplot(AllData$Ttl_Cst, main="Tot_Cst")
+
+```
+
+
+
+Following the advice of different research studies (Alvarez et al., 2014; Hair et al., 2010)  we remove them for the PCA because of their strong impact on the results, thus, the following boxplots are obtained (Figure A4).  
+
+```{r,echo=FALSE,fig.cap="**Figure A4:** Boxplot without outlier",fig.align='center'}
+###Warning!!! Depend on the Farmsize treshold the Analysis could have several changes 
+AllData2<- AllData[AllData$Farm_size < 400,]
+par(mfrow=c(1,3))
+boxplot(AllData2$Farm_size, main="Farm size")
+boxplot(AllData2$Ttl_Rev, main="Tot_Rev")
+boxplot(AllData2$Ttl_Cst, main="Tot_Cst")
+
+```
+
+Although with the new subsets there are still outliers we judge that they remain sufficiently grouped together to form a farm type.
+
+
+As a next step it is recommended for the PCA to use quantitative variables with normal or at least symmetric distribution. Therefore we apply different functions to the original variables that do not present a symmetric distribution (Figure A5). 
+
+
+```{r,echo=FALSE,fig.cap="**Figure A5:** Distribution of new variables",fig.align='center'}
+AllData2$Farm_size2 <- log10(AllData2$Farm_size)
+AllData2$Ttl_Lab2 <- log10(1+AllData2$Ttl_Lab)
+AllData2$Hrd_ratio2 <- log10(1+AllData2$Hrd_ratio)
+AllData2$Ttl_Rev2 <- log10(AllData2$Ttl_Rev)
+AllData2$Ttl_Cst2 <- log10(AllData2$Ttl_Cst)
+AllData2$Grn_shr2 <- log10(1+AllData2$Grn_shr)
+AllData2$SV_shr2 <- log10(1+AllData2$SV_shr)
+AllData2$SC_shr2 <- log10(1+AllData2$SC_shr)
+AllData2$Consumption2 <- sqrt(AllData2$Consumption)
+
+par(mfrow=c(3,3))
+newh1<-hist(AllData2$Farm_size2, main="Farm size 2",xlab=NULL)
+newh2<-hist(AllData2$Ttl_Lab2, main="Ttl Lab 2", xlab=NULL)
+newh3<-hist(AllData2$Hrd_ratio2, main="Hrd ratio 2", xlab=NULL)
+newh4<-hist(AllData2$Ttl_Rev2, main="Ttl Rev 2", xlab=NULL)
+newh5<-hist(AllData2$Ttl_Cst2, main="Ttl Cst 2", xlab=NULL)
+newh6<-hist(AllData2$Grn_shr2, main="Grn Share 2", xlab=NULL)
+newh7<-hist(AllData2$SV_shr2, main="SV Share 2", xlab=NULL)
+newh8<-hist(AllData2$SC_shr2, main="SC Share 2", xlab=NULL)
+newh9<-hist(AllData2$Consumption2, main="Consumption 2", xlab=NULL)
+
+```
+
+Even if we improved the variables distribution, to reach a "good" symmetry could be difficult for some variables, such as hired ratio, Consumption and the share of the different groups of crops (grains, spring vegetables, spring crops).
+
+
+
+# PCA Analysis
+
+Following Alvarez et al. (2014) the PCA analysis was made through the R-package 'ade4'. The principal components (PC) were determined through the Kaiser criterion, where all PCs with an eigenvalue higher than 1 were chosen (Herve et al., 2011). To avoid any mistake in the selection of PC, we also calculate the cumulated percentage of variability, considering as a criterion previously fixed, that the number of PC chosen must explain 60% or higher of the variability (Hair et al., 2010).
+
+
+```{r,echo=FALSE,include=FALSE}
+library(ade4)
+```
+
+```{r,echo=FALSE}
+
+par(mfrow=c(1,1))
+DataT <- AllData2[,match(c("Farm_size2", "commune", "hhsize", "Hrd_ratio2", "Ttl_Lab2", "Ttl_Rev2", "Ttl_Cst2",
+                             "Grn_shr2", "SV_shr2" ,"SC_shr2", "Consumption2"), dimnames(AllData2)[[2]])]
+
+Data.pca <- dudi.pca(DataT, center=TRUE, scale=TRUE, scannf=FALSE, nf=4)
+
+```
+
+
+
+```{r,echo=FALSE,fig.cap="**Figure A6:** Barplot of the eigenvalues",fig.align='center'}
+#load('Data.pca2.Rda')
+barplot(Data.pca$eig, main="Eigenvalues")
+abline(h=1, lty=5, col = "red")
+
+
+```
+
+###### *Cumulated percentage of variability*
+```{r}
+Data.pca$eig
+cumsum(Data.pca$eig) / sum(Data.pca$eig)
+```
+
+
+Observing Figure A6 and the cumulated percentage of variability explained by the PC we select 4 PCs. The  cumulative percentage of variability indicates that with PC1, PC2 PC3 and PC4  we explain about the 80% of the variability of the farms. 
+
+
+
+The interpretation of the PCs is based on the Figure A7 (correlation circles) and the next table (correlation matrices):
+
+```{r,echo=FALSE,fig.cap="**Figure A7:** Correlation circles for the principal components PC1-PC2 and PC1-PC3 and PC1-PC4",fig.align='center'}
+par(mfrow=c(1,3))
+s.corcircle(Data.pca$co, xax=1, yax=2,  )
+s.corcircle(Data.pca$co, xax=1, yax=3 )
+s.corcircle(Data.pca$co, xax=1, yax=4 )
+
+```
+
+
+###### *Correlation matrices*
+```{r}
+Data.pca$co
+```
+
+Here the variables Farm size, Total Revenue, Total Cost and Total Labour and Hired ratio are negative correlated with PC1, meanwhile Grain share and Consumption are positive correlated to PC1. Spring vegetables share and Total labour are negatively to PC2. Spring Crops share is positively correlated to PC3. Finally, household size is positively correlated with PC4. In brief, PC1 expresses information about Farm size (in terms of land and labour), PC2 and PC3 the relative importance of the Crop's share, and PC4 to the family size.
+
+
+Here the variable commune is not well represented on any of the planes PC1-PC2, PC1-PC3 and PC1-PC4. The variable Total Cost seems not to bring additional information for the PCA (it is correlated to Total Revevenue and could provide redundancy on PC1 (0.93; Pearson's correlation).
+
+```{r,echo=FALSE,include=FALSE}
+# Correlation
+cor.test(AllData2$Farm_size2, AllData2$Ttl_Lab2, method=c("pearson"))
+cor.test(AllData2$Farm_size2, AllData2$Hrd_ratio2, method=c("pearson"))
+cor.test(AllData2$Ttl_Rev2, AllData2$Ttl_Cst2, method=c("pearson"))
+cor.test(AllData2$Ttl_Rev2, AllData2$Ttl_Lab2, method=c("pearson"))
+cor.test(AllData2$Grn_shr2, AllData2$SV_shr2, method=c("pearson"))
+cor.test(AllData2$Grn_shr2, AllData2$SC_shr2, method=c("pearson"))
+```
+
+Considering the above we consider to delete  commune and Total Cost for a next PCA.In the next figure we represent the observations in the plane PC1-PC2, PC1-PC3 and PC1-PC4 
+
+```{r,echo=FALSE,fig.cap="**Figure A8:** Location of farms in the principal components planes PC1-PC2 and PC1-PC3",fig.align='center'}
+par(mfrow=c(1,3))
+s.label(Data.pca$li, xax=1, yax=2)
+s.label(Data.pca$li, xax=1, yax=3)
+s.label(Data.pca$li, xax=1, yax=4)
+```
+
+
+The second running of the PCA is performed without the variables above mentioned. Figure A9 represent the new eigenvalues 
+
+```{r,echo=FALSE}
+par(mfrow=c(1,1))
+DataT2 <- AllData2[,match(c("Farm_size2", "Hrd_ratio2", "hhsize", "Ttl_Lab2", "Ttl_Rev2", "Grn_shr2", "SV_shr2" ,"SC_shr2", "Consumption2"), dimnames(AllData2)[[2]])]
+
+Data.pca2 <- dudi.pca(DataT2, center=TRUE, scale=TRUE, scannf=FALSE, nf=3)
+```
+
+
+```{r,echo=FALSE,fig.cap="**Figure A9:** New barplot of the eigenvalues",fig.align='center'}
+#load('Data.pca3.Rda')
+barplot(Data.pca2$eig)
+abline(h=1, lty=5, col = "red")
+```
+
+###### *Cumulated percentage of variability*
+```{r}
+Data.pca2$eig
+
+cumsum(Data.pca2$eig) / sum(Data.pca2$eig)
+```
+
+
+Now PC1 and PC2 together explain 61% of the variability of the farms and PC1, PC2 and PC3 73.6%. Here the Kaiser criterion advised to use 3 PCs for the analysis. To interpret the meaning of each PC we use the correlation circle and the correlation matrix
+
+
+```{r,echo=FALSE,fig.cap="**Figure A10:** New Correlation circles for the principal components PC1-PC2 and PC1-PC3",fig.align='center'}
+par(mfrow=c(1,2))
+s.corcircle(Data.pca2$co, xax=1, yax=2, clab=0.6, fullcircle=T )
+s.corcircle(Data.pca2$co, xax=1, yax=3, clab=0.6, fullcircle=T )
+```
+
+
+```{r}
+Data.pca2$co
+```
+
+Here the variables Total Labour and Total Revenue  are negative correlated with PC1, meanwhile Grain share and Consumption are positive correlated to PC1. Farm size is positively correlated to PC2. Spring Crops share is negatively correlated to PC3.
+
+According to the PCA results, these discriminating variables are the best variables that segregates the farm-households. It is important t mention that the variable household size is not well represented on any of the planes
+
+```{r,fig.cap="**Figure A11:** Location of farms in the principal components planes PC1-PC2 and PC1-PC3",fig.align='center'}
+par(mfrow=c(1,2))
+s.label(Data.pca2$li, xax=1, yax=2)
+s.label(Data.pca2$li, xax=1, yax=3)
+
+```
+
+```{r,fig.cap="**Figure A12:** Farmers and variables illustrated in the principal components plane PC1-PC2 and PC1-PC3",fig.align='center'}
+par(mfrow=c(1,2))
+par(cex = 0.6)
+par(mar = c(3, 3, 0, 0))
+scatter(Data.pca2, xax=1, yax=2)
+scatter(Data.pca2, xax=1, yax=3)
+```
+
+
+# Cluster Analysis on PCA results
+
+We applied a Hierarchical clustering over the PCA results using the WARD method. The choice of the number of clusters was based on the overall appearance of the dendrogram, the number of clusters and their interpretability, and the examination of the heights delta (Alvarez et al., 2014; Husson et al., 2011).
+
+```{r, echo=FALSE, fig.cap="**Figure A13:** Barplot of the height and dendrogram",fig.align='center'}
+Data.cah <- hclust(dist(Data.pca2$li), method="ward.D")
+
+par(mfrow=c(1,2)) ## Change for layout
+par(cex = 0.6)
+par(mar = c(3, 3, 3, 0))
+barplot(Data.cah$height)
+abline(h=69, lty=5, col="red" )
+plot(Data.cah)
+rect.hclust(Data.cah, k = 4, border = "red")
+abline(h=69, lty=5, col = "red")
+```
+
+
+In the above figure, Height is an indicator of the dissimilarity within clusters related to the number of clusters. The bar on the far right shows the maximum dissimilarity, i.e. the dissimilarity when all the farms are grouped in one cluster. The examination of the heights decreases from right to left in the barplot figure and the overall structure of the dendrogram suggest to make the partition of the dendrogram ("cut the tree") at a Height of about 70 (the red dotted line) leading to partition of the dendrogram into 4 clusters.
+
+
+```{r,echo=FALSE,include=FALSE}
+Data.type <- cutree(Data.cah, k=4)
+```
+
+```{r, echo=FALSE, fig.cap="**Figure A14:** Result of the Principal Component Analysis and the Hierarchical Cluster",fig.align='center'}
+par(mfrow=c(2,2))
+s.corcircle(Data.pca2$co, xax=1, yax=2)
+s.class(Data.pca2$li, fac = as.factor(Data.type),col=c("red","blue","green","black"))
+
+s.corcircle(Data.pca2$co, xax=1, yax=3)
+s.class(Data.pca2$li, xax=1, yax=3, fac = as.factor(Data.type), col=c("red","blue","green","black"))
+```
+
+
+```{r,echo=FALSE,include=FALSE}
+FinalData <- AllData2
+FinalData$typo <- Data.type
+write.csv(FinalData, file="csv_files/Final_cluster.csv") 
+```
+
+
+
